@@ -206,6 +206,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             .append('svg:path')
                 .attr('d', lineGenerator(this.trace.get()))
                 .attr('class', 'trace')
+                .attr('pointer-events', 'none')  // don't capture click/mouseup
                 .attr('fill', 'none');
 
         path.attr('d', lineGenerator(this.trace.get()));
