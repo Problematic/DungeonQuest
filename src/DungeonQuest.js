@@ -25,15 +25,15 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         this.data = [];
 
         this.listenTo(this.board, 'trace:end', this.doTurn);
-        this.listenTo(this.board, 'trace:add', function (trace, element) {
-            var lastSelection = trace.last();
+        this.listenTo(this.board, 'trace:add', function (trace, tile) {
+            var lastSelection = trace.at(trace.length - 1);
 
             // todo: prevent crossing the trace line on a diagonal?
             // todo: path tracing to see if we can draw a valid
             // straight line between two tiles (instead of just adjacent)
-            if (this.isAdjacent(lastSelection.__data__, element.__data__) &&
-                lastSelection.__data__.isMatch(element.__data__)) {
-                trace.push(element);
+            if (this.isAdjacent(lastSelection, tile) &&
+                lastSelection.isMatch(tile)) {
+                trace.push(tile);
             }
         });
     };
@@ -103,7 +103,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
     };
 
     DungeonQuest.prototype.doTurn = function (trace) {
-        var tiles = trace.data(), columns = this.data, remove;
+        var tiles = trace.models, columns = this.data, remove;
 
         if (trace.length > 2) {
             _.each(tiles, function (tile) {
@@ -214,10 +214,6 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
                 return 'translate(' +
                     ((board.options.tileWidth + board.options.tilePadding) *
                         i) + ',0)';
-            })
-            .attr('data-cx', function (d, i) {
-                return (board.options.tileWidth + board.options.tilePadding) *
-                    i + (board.options.tileWidth / 2);
             });
 
         return columns;
@@ -273,7 +269,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
                 return;
             }
 
-            trace.reset([this]);
+            trace.reset([d]);
             trace.active = true;
         });
 
@@ -282,9 +278,9 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
                 return;
             }
 
-            if (!board.trace.contains(this)) {
-                board.trigger('trace:add', trace, this);
-            } else if (board.trace.get(-2) === this) {
+            if (board.trace.indexOf(d) === -1) {
+                board.trigger('trace:add', trace, d);
+            } else if (board.trace.at(board.trace.length - 2) === d) {
                 // we've backtracked, remove last element
                 board.trace.pop();
             }
@@ -304,26 +300,23 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
     GameBoard.prototype.renderTrace = function () {
         var board = this, lineGenerator = d3.svg.line()
             .x(function (d) {
-                var parent = d.parentNode;
-                if (parent.dataset) {
-                    return parent.dataset.cx;
-                }
-                // IE, y u no dataset?!
-                return d.parentNode.getAttribute('data-cx');
+                return (d.get('width') + d.get('padding')) *
+                    d.collection.index + (d.get('width') / 2);
             })
             .y(function (d) {
-                return d.y.baseVal.value + board.options.tileHeight / 2;
+                return (d.get('height') + d.get('padding')) *
+                    d.collection.indexOf(d) + (d.get('height') / 2);
             }),
             path = this.trace.selection(this.selection());
 
         path.enter()
             .append('svg:path')
-                .attr('d', lineGenerator(this.trace.get()))
+                .attr('d', lineGenerator(this.trace.models))
                 .attr('class', 'trace')
                 .attr('pointer-events', 'none')  // don't capture click/mouseup
                 .attr('fill', 'none');
 
-        path.attr('d', lineGenerator(this.trace.get()));
+        path.attr('d', lineGenerator(this.trace.models));
 
         path.exit().remove();
     };
@@ -331,65 +324,16 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
     DungeonQuest.GameBoard = GameBoard;
 
 
-    var Trace = function (options) {
-        if (!(this instanceof Trace)) {
-            return new Trace(options);
+    var Trace = Backbone.Collection.extend({
+        model: Tile,
+        active: false,
+        selection: function (selection) {
+            return selection.selectAll('.trace')
+                .data(this.models, function (d) {
+                    return d.cid;
+                });
         }
-
-        this.active = false;
-        this._elements = [];  // todo: refactor to use coords instead
-        this.length = 0;
-    };
-
-    _.extend(Trace.prototype, Backbone.Events);
-
-    Trace.prototype.selection = function (selection) {
-        return selection.selectAll('.trace')
-            .data(this._elements, function (d) {
-                return d;
-            });
-    };
-
-    Trace.prototype.get = function (index) {
-        if (!isNaN(index)) {
-            if (index >= 0) {
-                return this._elements[index];
-            }
-            return this._elements[this._elements.length + index];
-        }
-        return this._elements;
-    };
-
-    Trace.prototype.push = function (element) {
-        this._elements.push(element);
-        this.length = this._elements.length;
-
-        return this._elements.length;
-    };
-
-    Trace.prototype.pop = function (element) {
-        var el = this._elements.pop();
-        this.length = this._elements.length;
-
-        return el;
-    };
-
-    Trace.prototype.reset = function (elements) {
-        this._elements = elements || [];
-        this.length = this._elements.length;
-    };
-
-    Trace.prototype.last = function () {
-        return this._elements[this._elements.length - 1];
-    };
-
-    Trace.prototype.contains = function (element) {
-        return this._elements.indexOf(element) !== -1;
-    };
-
-    Trace.prototype.data = function () {
-        return _.pluck(this.get(), '__data__');
-    };
+    });
 
     GameBoard.Trace = Trace;
 
