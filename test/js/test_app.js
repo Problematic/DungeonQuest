@@ -37,7 +37,7 @@
                     },
                     doRemove: function (state, player) {
                         var max = player.get('max_health'),
-                            newTotal = player.get('health') + state.get('potion').value;
+                            newTotal = player.get('health') + this.get('value');
                         if (newTotal > max) {
                             newTotal = max;
                         }
@@ -64,8 +64,8 @@
                         });
                     },
                     doRemove: function (state, player) {
-                        if (player.get('attack') >= state.get('skull').health) {
-                            player.increment('xp', state.get('skull').xp);
+                        if (player.get('attack') >= this.get('health')) {
+                            player.increment('xp', this.get('xp'));
                             return true;
                         }
 
