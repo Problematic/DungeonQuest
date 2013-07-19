@@ -301,15 +301,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
     };
 
     GameBoard.prototype.renderTrace = function () {
-        var board = this, lineGenerator = d3.svg.line()
-            .x(function (d) {
-                return (d.get('width') + d.get('padding')) *
-                    d.collection.index + (d.get('width') / 2);
-            })
-            .y(function (d) {
-                return (d.get('height') + d.get('padding')) *
-                    d.collection.indexOf(d) + (d.get('height') / 2);
-            }),
+        var lineGenerator = d3.svg.line().x(this.cx).y(this.cy),
             path = this.trace.selection(this.selection());
 
         path.enter()
@@ -322,6 +314,16 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         path.attr('d', lineGenerator(this.trace.models));
 
         path.exit().remove();
+    };
+
+    GameBoard.prototype.cx = function (tile) {
+        return (tile.get('width') + tile.get('padding')) *
+            tile.collection.index + (tile.get('width') / 2);
+    };
+
+    GameBoard.prototype.cy = function (tile) {
+        return (tile.get('height') + tile.get('padding')) *
+            tile.collection.indexOf(tile) + (tile.get('height') / 2);
     };
 
     DungeonQuest.GameBoard = GameBoard;
