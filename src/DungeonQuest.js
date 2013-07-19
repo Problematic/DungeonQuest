@@ -4,28 +4,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             return new DungeonQuest(options);
         }
 
-        this.board = new GameBoard(options);
-
-
-        this.listenTo(this.board, 'trace:end', this.doTurn);
-    };
-
-    _.extend(DungeonQuest.prototype, Backbone.Events);
-
-    DungeonQuest.prototype.start = function () {
-        this.board.render();
-    };
-
-    DungeonQuest.prototype.doTurn = function (trace) {
-        var data = trace.data();
-    };
-
-    var GameBoard = function (options) {
-        if (!(this instanceof GameBoard)) {
-            return new GameBoard(options);
-        }
-
-        options = _.extend({
+        this.options = _.extend({
             rowCount: 6,
             columnCount: 6,
             tileWidth: 50,
@@ -33,19 +12,184 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             tilePadding: 5,
             tileset: []
         }, options);
+        this.tileset = options.tileset;
 
-        this.options = options;
-        this.tileset = this.options.tileset;
-
-        var columns = [], column;
+        var data = [], column;
         for (var i = 0; i < this.options.columnCount; i++) {
             column = new Column(null, {
                 index: i
             });
-            columns.push(this.fillColumn(column));
+            data.push(this.fillColumn(column));
+        }
+        this.data = data;
+
+        this.board = new GameBoard(this.options);
+        this.state = new State({
+            score: 0
+        });
+        this.player = new State({
+            level: 1,
+            xp: 0
+        });
+
+        _.each(this.tileset, function (tile) {
+            tile.methods.register(this.state, this.player);
+        }, this);
+
+        this.listenTo(this.board, 'trace:end', this.doTurn);
+        this.listenTo(this.board, 'trace:add', function (trace, element) {
+            var lastSelection = trace.last();
+
+            // todo: prevent crossing the trace line on a diagonal?
+            // todo: path tracing to see if we can draw a valid
+            // straight line between two tiles (instead of just adjacent)
+            if (this.isAdjacent(lastSelection.__data__, element.__data__) &&
+                lastSelection.__data__.isMatch(element.__data__)) {
+                trace.push(element);
+            }
+        });
+    };
+
+    _.extend(DungeonQuest.prototype, Backbone.Events);
+
+    DungeonQuest.prototype.fillColumn = function (column) {
+        while (column.length < this.options.rowCount) {
+            column.unshift(this.createTile());
+        }
+        return column;
+    };
+
+    DungeonQuest.prototype.createTile = function (type) {
+        var tile, attributes, instance;
+        tile = this.tileset[type] || _.shuffle(_.values(this.tileset))[0];
+        attributes = _.extend({
+            width: this.options.tileWidth,
+            height: this.options.tileHeight,
+            padding: this.options.tilePadding
+        }, tile.attributes);
+        instance = new Tile(attributes);
+        _.extend(instance, tile.methods);
+
+        return instance;
+    };
+
+    DungeonQuest.prototype.getAdjacent = function (tile) {
+        var tileIdx = tile.collection.indexOf(tile),
+            colIdx = this.data.indexOf(tile.collection),
+            adjacent = [];
+
+        // todo: figure out how to optimize this
+        _.each(this.data, function (column, index) {
+            if (index >= colIdx -1 && index <= colIdx + 1) {
+                column.each(function (tile, idx) {
+                    if (idx >= tileIdx -1 && idx <= tileIdx + 1) {
+                        adjacent.push(tile);
+                    }
+                });
+            }
+        });
+
+        return adjacent;
+    };
+
+    DungeonQuest.prototype.isAdjacent = function (source, target) {
+        return this.getAdjacent(source).indexOf(target) !== -1;
+    };
+
+    DungeonQuest.prototype.start = function () {
+        this.board.render(this.data);
+    };
+
+    DungeonQuest.prototype.doTurn = function (trace) {
+        var tiles = trace.data(), columns = this.data, remove;
+
+        if (trace.length > 2) {
+            _.each(tiles, function (tile) {
+                remove = tile.doRemove(this.state, this.player);
+                if (remove) {
+                    this.state.increment('score', tile.get('points'));
+                    this.player.increment('xp', tile.get('xp'));
+
+                    _.each(columns, function (column) {
+                        if (!column.get(tile.cid)) { return ; }
+
+                        column.remove(tile);
+                        this.fillColumn(column);
+                    }, this);
+                }
+            }, this);
         }
 
-        this._columns = columns;
+        // step 1: verify game state (did we level up?)
+        // step 2: call doTurn(state, player) on each remaining board tile
+        // step 3: verify game state (are we dead?)
+
+        trace.reset();
+        trace.active = false;
+        this.board.render(this.data);
+    };
+
+
+    var State = Backbone.Model.extend({
+        increment: function (key, by) {
+            var newTotal;
+
+            if (!this.has(key)) {
+                return;
+            }
+
+            newTotal = this.get(key) + by;
+            this.set(key, newTotal);
+
+            return newTotal;
+        }
+    });
+
+    DungeonQuest.State = State;
+
+
+    var Tile = Backbone.Model.extend({
+        defaults: function () {
+            return {
+                matches: [],
+                points: 0
+            };
+        },
+
+        isMatch: function (tile) {
+            // todo: we may not want to match this.type === tile.type
+            // what if we have a tile that doesn't match itself?
+            // tradeoff: having to put ourself in the matches list
+            return this.get('type') === tile.get('type') ||
+                (this.get('matches').indexOf(tile.get('type')) !== -1 ||
+                    tile.get('matches').indexOf(this.get('type')) !== -1);
+        },
+
+        doRemove: function (state, player) {
+            return true;
+        }
+    });
+
+    DungeonQuest.Tile = Tile;
+
+
+    var Column = Backbone.Collection.extend({
+        initialize: function (models, options) {
+            this.index = options.index;
+        },
+        model: Tile
+    });
+
+    DungeonQuest.Column = Column;
+
+
+    var GameBoard = function (options) {
+        if (!(this instanceof GameBoard)) {
+            return new GameBoard(options);
+        }
+
+        this.options = options;
+
         this._selection = this.options.selection;
         this.trace = new Trace();
     };
@@ -56,9 +200,9 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         return this._selection;
     };
 
-    GameBoard.prototype.columnSelection = function () {
+    GameBoard.prototype.columnSelection = function (data) {
         var board = this, columns = this.selection().selectAll('.column')
-            .data(this.getColumns(), function (d) {
+            .data(data, function (d) {
                 return d.index;
             });
 
@@ -77,9 +221,9 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         return columns;
     };
 
-    GameBoard.prototype.render = function () {
+    GameBoard.prototype.render = function (data) {
         var assetRoot = this.options.assetRoot,
-            columns = this.columnSelection(),
+            columns = this.columnSelection(data),
             board = this,
             trace = board.trace;
 
@@ -121,7 +265,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             });
 
         enterset.on('mousedown', function (d, i) {
-            // if we're not a tile, or the trace is already active
+            // if the trace is already active
             // (can happen when mouseup happens off-board)
             if (trace.active) {
                 return;
@@ -132,50 +276,22 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         });
 
         enterset.on('mouseover', function (d, i) {
-            var tile, lastSelection = board.trace.last();
-
             if (!board.trace.active) {
                 return;
             }
 
             if (!board.trace.contains(this)) {
-                // todo: prevent crossing the trace line on a diagonal?
-                // todo: path tracing to see if we can draw a valid
-                // straight line between two tiles (instead of just adjacent)
-                if (board.isAdjacent(lastSelection.__data__, d) &&
-                    lastSelection.__data__.isMatch(this.__data__)) {
-                    trace.push(this);
-                }
+                board.trigger('trace:add', trace, this);
             } else if (board.trace.get(-2) === this) {
                 // we've backtracked, remove last element
-                trace.pop();
+                board.trace.pop();
             }
 
-            board.render();
+            board.renderTrace();
         });
 
         enterset.on('mouseup', function (d, i) {
-            var columns, idx;
-
-            if (board.trace.length > 2) {
-
-                board.trigger('trace:end', trace);
-                columns = board.getColumns();
-
-                _.each(board.trace.get(), function (tile, index) {
-                    _.each(columns, function (column, index) {
-                        idx = column.models.indexOf(tile.__data__);
-                        if (idx === -1) { return; }
-
-                        column.remove(tile.__data__);
-                        board.fillColumn(column);
-                    });
-                });
-            }
-
-            trace.reset();
-            trace.active = false;
-            board.render();
+            board.trigger('trace:end', trace);
         });
 
         tiles.exit().remove();
@@ -208,47 +324,6 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         path.attr('d', lineGenerator(this.trace.get()));
 
         path.exit().remove();
-    };
-
-    GameBoard.prototype.fillColumn = function (column) {
-        var tile, attributes;
-        while (column.length < this.options.rowCount) {
-            attributes = _.extend({
-                width: this.options.tileWidth,
-                height: this.options.tileHeight,
-                padding: this.options.tilePadding
-            }, _.shuffle(_.values(this.tileset))[0]);
-            tile = new Tile(attributes);
-            column.unshift(tile);
-        }
-        return column;
-    };
-
-    GameBoard.prototype.getAdjacent = function (tile) {
-        var tileIdx = tile.collection.indexOf(tile),
-            colIdx = this.getColumns().indexOf(tile.collection),
-            adjacent = [];
-
-        // todo: figure out how to optimize this
-        _.each(this.getColumns(), function (column, index) {
-            if (index >= colIdx -1 && index <= colIdx + 1) {
-                column.each(function (tile, idx) {
-                    if (idx >= tileIdx -1 && idx <= tileIdx + 1) {
-                        adjacent.push(tile);
-                    }
-                });
-            }
-        });
-
-        return adjacent;
-    };
-
-    GameBoard.prototype.isAdjacent = function (source, target) {
-        return this.getAdjacent(source).indexOf(target) !== -1;
-    };
-
-    GameBoard.prototype.getColumns = function () {
-        return this._columns;
     };
 
     DungeonQuest.GameBoard = GameBoard;
@@ -315,37 +390,6 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
     };
 
     GameBoard.Trace = Trace;
-
-
-    var Tile = Backbone.Model.extend({
-        defaults: function () {
-            return {
-                matches: [],
-                points: 0
-            };
-        },
-
-        isMatch: function (tile) {
-            // todo: we may not want to match this.type === tile.type
-            // what if we have a tile that doesn't match itself?
-            // tradeoff: having to put ourself in the matches list
-            return this.get('type') === tile.get('type') ||
-                (this.get('matches').indexOf(tile.get('type')) !== -1 ||
-                    tile.get('matches').indexOf(this.get('type')) !== -1);
-        }
-    });
-
-    GameBoard.Tile = Tile;
-
-
-    var Column = Backbone.Collection.extend({
-        initialize: function (models, options) {
-            this.index = options.index;
-        },
-        model: Tile
-    });
-
-    GameBoard.Column = Column;
 
 
     return DungeonQuest;
