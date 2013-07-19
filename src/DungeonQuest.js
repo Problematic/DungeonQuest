@@ -116,7 +116,6 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
                         if (!column.get(tile.cid)) { return ; }
 
                         column.remove(tile);
-                        this.fillColumn(column);
                     }, this);
                 }
             }, this);
@@ -125,6 +124,10 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         // step 1: verify game state (did we level up?)
         // step 2: call doTurn(state, player) on each remaining board tile
         // step 3: verify game state (are we dead?)
+
+        _.each(columns, function (column) {
+            this.fillColumn(column);
+        }, this);
 
         trace.reset();
         trace.active = false;
