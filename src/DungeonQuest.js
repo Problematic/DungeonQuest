@@ -14,15 +14,6 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         }, options);
         this.tileset = options.tileset;
 
-        var data = [], column;
-        for (var i = 0; i < this.options.columnCount; i++) {
-            column = new Column(null, {
-                index: i
-            });
-            data.push(this.fillColumn(column));
-        }
-        this.data = data;
-
         this.board = new GameBoard(this.options);
         this.state = new State({
             score: 0
@@ -31,10 +22,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             level: 1,
             xp: 0
         });
-
-        _.each(this.tileset, function (tile) {
-            tile.methods.register(this.state, this.player);
-        }, this);
+        this.data = [];
 
         this.listenTo(this.board, 'trace:end', this.doTurn);
         this.listenTo(this.board, 'trace:add', function (trace, element) {
@@ -66,7 +54,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             width: this.options.tileWidth,
             height: this.options.tileHeight,
             padding: this.options.tilePadding
-        }, tile.attributes);
+        }, tile.attributes, this.state.get(tile.attributes.type));
         instance = new Tile(attributes);
         _.extend(instance, tile.methods);
 
@@ -97,6 +85,20 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
     };
 
     DungeonQuest.prototype.start = function () {
+        var data = [], column;
+
+        _.each(this.tileset, function (tile) {
+            tile.methods.register(this.state, this.player);
+        }, this);
+
+        for (var i = 0; i < this.options.columnCount; i++) {
+            column = new Column(null, {
+                index: i
+            });
+            data.push(this.fillColumn(column));
+        }
+        this.data = data;
+
         this.board.render(this.data);
     };
 
