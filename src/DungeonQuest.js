@@ -6,32 +6,18 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
 
         this.board = new GameBoard(options);
 
-        this.listenTo(this.board, 'trace:start', function (d, trace) {
-            // if we're not a tile, or the trace is already active
-            // (can happen when mouseup happens off-board)
-            if (trace.active) {
-                return;
-            }
 
-            trace.reset([d]);
-            trace.active = true;
-        });
-        this.listenTo(this.board, 'trace:add', function (d, trace) {
-            trace.push(d);
-        });
-        this.listenTo(this.board, 'trace:remove', function (d, trace) {
-            trace.pop();
-        });
-        this.listenTo(this.board, 'trace:end', function (d, trace) {
-            trace.reset();
-            trace.active = false;
-        });
+        this.listenTo(this.board, 'trace:end', this.doTurn);
     };
 
     _.extend(DungeonQuest.prototype, Backbone.Events);
 
     DungeonQuest.prototype.start = function () {
         this.board.render();
+    };
+
+    DungeonQuest.prototype.doTurn = function (trace) {
+        var data = trace.data();
     };
 
     var GameBoard = function (options) {
@@ -94,7 +80,8 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
     GameBoard.prototype.render = function () {
         var assetRoot = this.options.assetRoot,
             columns = this.columnSelection(),
-            board = this;
+            board = this,
+            trace = board.trace;
 
         var tiles = columns.selectAll('.tile')
                 .data(function (d, i) {
@@ -134,7 +121,14 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             });
 
         enterset.on('mousedown', function (d, i) {
-            board.trigger('trace:start', this, board.trace);
+            // if we're not a tile, or the trace is already active
+            // (can happen when mouseup happens off-board)
+            if (trace.active) {
+                return;
+            }
+
+            trace.reset([this]);
+            trace.active = true;
         });
 
         enterset.on('mouseover', function (d, i) {
@@ -149,12 +143,12 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
                 // todo: path tracing to see if we can draw a valid
                 // straight line between two tiles (instead of just adjacent)
                 if (board.isAdjacent(lastSelection.__data__, d) &&
-                    lastSelection.__data__.isMatch(d)) {
-                    board.trigger('trace:add', this, board.trace);
+                    lastSelection.__data__.isMatch(this.__data__)) {
+                    trace.push(this);
                 }
             } else if (board.trace.get(-2) === this) {
                 // we've backtracked, remove last element
-                board.trigger('trace:remove', this, board.trace);
+                trace.pop();
             }
 
             board.render();
@@ -165,6 +159,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
 
             if (board.trace.length > 2) {
 
+                board.trigger('trace:end', trace);
                 columns = board.getColumns();
 
                 _.each(board.trace.get(), function (tile, index) {
@@ -178,7 +173,8 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
                 });
             }
 
-            board.trigger('trace:end', this, board.trace);
+            trace.reset();
+            trace.active = false;
             board.render();
         });
 
@@ -312,6 +308,10 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
 
     Trace.prototype.contains = function (element) {
         return this._elements.indexOf(element) !== -1;
+    };
+
+    Trace.prototype.data = function () {
+        return _.pluck(this.get(), '__data__');
     };
 
     GameBoard.Trace = Trace;
