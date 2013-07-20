@@ -107,6 +107,10 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
 
         if (trace.length > 2) {
             _.each(tiles, function (tile) {
+                tile.preRemove(this.state, this.player);
+            }, this);
+
+            _.each(tiles, function (tile) {
                 remove = tile.doRemove(this.state, this.player);
                 if (remove) {
                     this.state.increment('score', tile.get('points'));
@@ -118,6 +122,10 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
                         column.remove(tile);
                     }, this);
                 }
+            }, this);
+
+            _.each(tiles, function (tile) {
+                tile.postRemove(this.state, this.player);
             }, this);
         }
 

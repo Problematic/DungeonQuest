@@ -18,9 +18,24 @@ DungeonQuest.Tile = (function (Backbone) {
                     tile.get('matches').indexOf(this.get('type')) !== -1);
         },
 
+        increment: function (key, by) {
+            var newTotal;
+
+            if (!this.has(key)) {
+                return;
+            }
+
+            newTotal = this.get(key) + by;
+            this.set(key, newTotal);
+
+            return newTotal;
+        },
+
+        preRemove: function (state, player) {},
         doRemove: function (state, player) {
             return true;
-        }
+        },
+        postRemove: function (state, player) {}
     });
 
     return Tile;

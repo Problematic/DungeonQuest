@@ -2,14 +2,57 @@
 <html>
 <head>
 	<title>DungeonQuest</title>
+	<link rel="stylesheet" href="http://code.jquery.com/qunit/qunit-1.12.0.css">
 	<link rel="stylesheet" href="../assets/css/DungeonQuest.css">
 </head>
 <body>
+	<div id="qunit"></div>
 	<div class="field"></div>
+
+	<script src="http://code.jquery.com/qunit/qunit-1.12.0.js"></script>
+
 	<script src="../lib/underscore.js"></script>
 	<script src="../lib/backbone.js"></script>
 	<script src="../lib/d3.js" charset="utf-8"></script>
-	<script src="../DungeonQuest.js"></script>
+
+	<script src="../src/DungeonQuest.js"></script>
+	<script src="../src/Column.js"></script>
+	<script src="../src/GameBoard.js"></script>
+	<script src="../src/State.js"></script>
+	<script src="../src/Tile.js"></script>
+	<script src="../src/Trace.js"></script>
+
 	<script src="js/test_app.js"></script>
+
+	<script>
+	var triggerEvent = function (element, event) {
+		var evt = document.createEvent('HTMLEvents');
+		evt.initEvent(event, true, true);
+		return !element.dispatchEvent(evt);
+	};
+
+	test('Hello, world!', function () {
+		var column, tiles;
+		ok(game instanceof DungeonQuest, 'A DungeonQuest is us!');
+
+		// a cheater hack so we can select them without much fuss
+		// todo: there's gotta be a better way to provide initial data
+		column = game.data[0];
+		column.at(0).set('type', 'coin');
+		column.at(1).set('type', 'coin');
+		column.at(2).set('type', 'coin');
+		var tiles = document.querySelectorAll('.tile');
+
+		triggerEvent(tiles[0], 'mousedown');
+		triggerEvent(tiles[1], 'mouseover');
+		triggerEvent(tiles[2], 'mouseover');
+
+		deepEqual(game.board.trace.models, column.slice(0, 3), 'Trace data should be equal to selected models');
+
+		triggerEvent(tiles[2], 'mouseup');
+
+		equal(game.board.trace.length, 0, 'After mouseup, trace data should be empty');
+	});
+	</script>
 </body>
 </html>
