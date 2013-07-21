@@ -1,4 +1,6 @@
 var DungeonQuest = (function (d3, _, Backbone, undefined) {
+    "use strict";
+
     var DungeonQuest = function (options) {
         if (!(this instanceof DungeonQuest)) {
             return new DungeonQuest(options);
