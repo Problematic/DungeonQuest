@@ -71,6 +71,9 @@ var game = new DungeonQuest({
                     }
 
                     return false;
+                },
+                doTurn: function (state, player) {
+                    player.increment('health', 0 - this.get('attack'));
                 }
             }
         },

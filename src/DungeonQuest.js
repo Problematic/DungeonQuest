@@ -20,7 +20,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         this.state = new DungeonQuest.State({
             score: 0
         });
-        this.player = new DungeonQuest.State({
+        this.player = new DungeonQuest.Player({
             level: 1,
             xp: 0
         });
@@ -133,6 +133,11 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
 
         // step 1: verify game state (did we level up?)
         // step 2: call doTurn(state, player) on each remaining board tile
+        _.each(columns, function (column) {
+            _.each(column.models, function (tile) {
+                tile.doTurn(this.state, this.player);
+            }, this);
+        }, this);
         // step 3: verify game state (are we dead?)
 
         _.each(columns, function (column) {

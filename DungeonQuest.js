@@ -1,4 +1,6 @@
 var DungeonQuest = (function (d3, _, Backbone, undefined) {
+    "use strict";
+
     var DungeonQuest = function (options) {
         if (!(this instanceof DungeonQuest)) {
             return new DungeonQuest(options);
@@ -18,7 +20,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
         this.state = new DungeonQuest.State({
             score: 0
         });
-        this.player = new DungeonQuest.State({
+        this.player = new DungeonQuest.Player({
             level: 1,
             xp: 0
         });
@@ -107,6 +109,10 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
 
         if (trace.length > 2) {
             _.each(tiles, function (tile) {
+                tile.preRemove(this.state, this.player);
+            }, this);
+
+            _.each(tiles, function (tile) {
                 remove = tile.doRemove(this.state, this.player);
                 if (remove) {
                     this.state.increment('score', tile.get('points'));
@@ -119,10 +125,19 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
                     }, this);
                 }
             }, this);
+
+            _.each(tiles, function (tile) {
+                tile.postRemove(this.state, this.player);
+            }, this);
         }
 
         // step 1: verify game state (did we level up?)
         // step 2: call doTurn(state, player) on each remaining board tile
+        _.each(columns, function (column) {
+            _.each(column.models, function (tile) {
+                tile.doTurn(this.state, this.player);
+            }, this);
+        }, this);
         // step 3: verify game state (are we dead?)
 
         _.each(columns, function (column) {
@@ -308,12 +323,27 @@ DungeonQuest.State = (function (Backbone) {
             newTotal = this.get(key) + by;
             this.set(key, newTotal);
 
-            return newTotal;
+            return this;
         }
     });
 
     return State;
 }(Backbone));
+
+DungeonQuest.Player = (function (Backbone, DungeonQuest) {
+    "use strict";
+
+    return DungeonQuest.State.extend({
+        initialize: function (options) {
+            this.on('change:health', function (model, value) {
+                var max_health = this.get('max_health');
+                if (this.get('health') > max_health) {
+                    this.set('health', max_health);
+                }
+            });
+        }
+    });
+}(Backbone, DungeonQuest));
 
 DungeonQuest.Tile = (function (Backbone) {
     "use strict";
@@ -335,9 +365,26 @@ DungeonQuest.Tile = (function (Backbone) {
                     tile.get('matches').indexOf(this.get('type')) !== -1);
         },
 
+        increment: function (key, by) {
+            var newTotal;
+
+            if (!this.has(key)) {
+                return;
+            }
+
+            newTotal = this.get(key) + by;
+            this.set(key, newTotal);
+
+            return newTotal;
+        },
+
+        preRemove: function (state, player) {},
         doRemove: function (state, player) {
             return true;
-        }
+        },
+        postRemove: function (state, player) {},
+
+        doTurn: function (state, player) {}
     });
 
     return Tile;

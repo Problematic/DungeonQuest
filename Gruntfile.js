@@ -3,7 +3,15 @@ module.exports = function (grunt) {
         pkg: grunt.file.readJSON('package.json'),
         concat: {
             dist: {
-                src: ['src/DungeonQuest.js', 'src/*.js'],
+                src: [
+                    'src/DungeonQuest.js',
+                    'src/Column.js',
+                    'src/GameBoard.js',
+                    'src/State.js',
+                    'src/Player.js',
+                    'src/Tile.js',
+                    'src/Trace.js'
+                ],
                 dest: 'DungeonQuest.js'
             }
         },
@@ -16,7 +24,7 @@ module.exports = function (grunt) {
         watch: {
             scripts: {
                 files: ['src/**/*.js', 'test/**/*.js'],
-                tasks: ['jshint', 'qunit', 'concat']
+                tasks: ['jshint', 'qunit']
             }
         }
     });
@@ -26,5 +34,5 @@ module.exports = function (grunt) {
     grunt.loadNpmTasks('grunt-contrib-watch');
     grunt.loadNpmTasks('grunt-contrib-concat');
 
-    grunt.registerTask('default', ['jshint', 'qunit']);
+    grunt.registerTask('default', ['jshint', 'qunit', 'concat']);
 };
