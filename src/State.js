@@ -12,7 +12,7 @@ DungeonQuest.State = (function (Backbone) {
             newTotal = this.get(key) + by;
             this.set(key, newTotal);
 
-            return newTotal;
+            return this;
         }
     });
 
