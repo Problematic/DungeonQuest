@@ -37,7 +37,14 @@ DungeonQuest.Tile = (function (Backbone) {
         },
         postRemove: function (state, player) {},
 
-        doTurn: function (state, player) {}
+        doTurn: function (state, player) {},
+
+        x: function () {
+            return this.collection.index;
+        },
+        y: function () {
+            return this.collection.indexOf(this);
+        }
     });
 
     return Tile;
