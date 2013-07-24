@@ -12,9 +12,10 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             tileWidth: 50,
             tileHeight: 50,
             tilePadding: 5,
-            tileset: []
+            tileset: [],
+            dataset: []
         }, options);
-        this.tileset = options.tileset;
+        this.tileset = this.options.tileset;
 
         this.board = new DungeonQuest.GameBoard(this.options);
         this.state = new DungeonQuest.State({
@@ -24,7 +25,7 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
             level: 1,
             xp: 0
         });
-        this.data = [];
+        this.data = this.options.dataset;
 
         this.listenTo(this.board, 'trace:end', this.doTurn);
         this.listenTo(this.board, 'trace:add', function (trace, tile) {
