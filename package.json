@@ -1,12 +1,12 @@
 {
   "name": "DungeonQuest",
-  "version": "0.0.1",
+  "version": "0.1",
   "description": "A Dungeon Raid-inspired Bejeweled-like RPG",
   "main": "Gruntfile.js",
   "scripts": {
     "test": "grunt qunit"
   },
-  "repository": "",
+  "repository": "https://github.com/Problematic/DungeonQuest",
   "author": "Derek Stobbe",
   "license": "MIT",
   "devDependencies": {
