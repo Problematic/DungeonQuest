@@ -1,6 +1,6 @@
 {
   "name": "DungeonQuest",
-  "version": "0.1",
+  "version": "0.1.0",
   "description": "A Dungeon Raid-inspired Bejeweled-like RPG",
   "main": "Gruntfile.js",
   "scripts": {
