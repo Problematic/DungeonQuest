@@ -65,25 +65,26 @@ var DungeonQuest = (function (d3, _, Backbone, undefined) {
     };
 
     DungeonQuest.prototype.getAdjacent = function (tile) {
-        var tileIdx = tile.collection.indexOf(tile),
-            colIdx = this.data.indexOf(tile.collection),
-            adjacent = [];
+        var adjacent = [],
+            xStart = tile.x() > 0 ? -1 : 0,
+            xEnd = tile.x() < this.options.columnCount - 1 ? 1 : 0,
+            yStart = tile.y() > 0 ? -1 : 0,
+            yEnd = tile.y() < this.options.rowCount - 1 ? 1 : 0;
 
-        // todo: figure out how to optimize this
-        _.each(this.data, function (column, index) {
-            if (index >= colIdx -1 && index <= colIdx + 1) {
-                column.each(function (tile, idx) {
-                    if (idx >= tileIdx -1 && idx <= tileIdx + 1) {
-                        adjacent.push(tile);
-                    }
-                });
+        // http://stackoverflow.com/a/2035539/535666
+        for (var dx = xStart; dx <= xEnd; dx++) {
+            for (var dy = yStart; dy <= yEnd; dy++) {
+                if (dx !== 0 || dy !== 0) {
+                    adjacent.push(this.data[tile.x() + dx].at(tile.y() + dy));
+                }
             }
-        });
+        }
 
         return adjacent;
     };
 
     DungeonQuest.prototype.isAdjacent = function (source, target) {
+        // todo: we can just check indexes, we don't need to pull the tiles
         return this.getAdjacent(source).indexOf(target) !== -1;
     };
 
@@ -314,17 +315,20 @@ DungeonQuest.State = (function (Backbone) {
     "use strict";
 
     var State = Backbone.Model.extend({
-        increment: function (key, by) {
-            var newTotal;
+        increment: function (key, by, create) {
+            var oldTotal = this.get(key), newTotal;
 
-            if (!this.has(key)) {
+            if (oldTotal !== undefined && isNaN(oldTotal)) {
+                return;
+            } else if (oldTotal === undefined && !create) {
                 return;
             }
 
-            newTotal = this.get(key) + by;
+            newTotal = (oldTotal || 0) + by;
+
             this.set(key, newTotal);
 
-            return this;
+            return newTotal;
         }
     });
 
@@ -385,7 +389,14 @@ DungeonQuest.Tile = (function (Backbone) {
         },
         postRemove: function (state, player) {},
 
-        doTurn: function (state, player) {}
+        doTurn: function (state, player) {},
+
+        x: function () {
+            return this.collection.index;
+        },
+        y: function () {
+            return this.collection.indexOf(this);
+        }
     });
 
     return Tile;
