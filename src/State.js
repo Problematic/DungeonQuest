@@ -2,17 +2,20 @@ DungeonQuest.State = (function (Backbone) {
     "use strict";
 
     var State = Backbone.Model.extend({
-        increment: function (key, by) {
-            var newTotal;
+        increment: function (key, by, create) {
+            var oldTotal = this.get(key), newTotal;
 
-            if (!this.has(key)) {
+            if (oldTotal !== undefined && isNaN(oldTotal)) {
+                return;
+            } else if (oldTotal === undefined && !create) {
                 return;
             }
 
-            newTotal = this.get(key) + by;
+            newTotal = (oldTotal || 0) + by;
+
             this.set(key, newTotal);
 
-            return this;
+            return newTotal;
         }
     });
 
